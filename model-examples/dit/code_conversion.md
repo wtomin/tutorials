@@ -62,6 +62,13 @@ python -c "import mindone; print(mindone.__version__)"
 
 如果安装成功，则输出版本号。
 
+请继续安装如下的依赖：
+```bash
+pip install imageio==2.31.2 gdown einops omegaconf safetensors albumentations mindcv
+```
+或者参考[requirements.txt](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/requirements.txt) 并使用`pip install -r requirements.txt` 安装依赖。
+
+
 ### 准备数据集
 
 
