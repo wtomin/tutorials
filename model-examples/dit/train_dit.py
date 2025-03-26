@@ -8,7 +8,7 @@ import logging
 import os
 from typing import Optional
 import yaml
-
+import sys
 from mindcv.optim.adamw import AdamW
 
 import mindspore as ms
@@ -23,12 +23,19 @@ try:
 except ImportError:
     raise ImportError("MindONE has not been installed. Please install it before running this script.")
 
-from mindone.examples.dit.pipelines.train_pipeline import DiTWithLoss
-from mindone.examples.dit.utils.model_utils import load_dit_ckpt_params, str2bool
-from mindone.examples.dit.diffusion import create_diffusion
-from mindone.examples.dit.modules.autoencoder import SD_CONFIG, AutoencoderKL
-from mindone.examples.dit.mindone.models.dit import DiT_models
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+example_path = os.path.abspath(os.path.join(__dir__, "./mindone/examples/"))
+if not os.path.exists(example_path):
+    raise ValueError(f"Expect to find the mindone examples directory: {example_path}")
+sys.path.insert(0, example_path)
 
+# load dit example modules
+from dit.pipelines.train_pipeline import DiTWithLoss
+from dit.utils.model_utils import load_dit_ckpt_params, str2bool
+from dit.diffusion import create_diffusion
+from dit.modules.autoencoder import SD_CONFIG, AutoencoderKL
+
+from mindone.models.dit import DiT_models
 # load training modules
 from mindone.trainers.callback import EvalSaveCallback, OverflowMonitor
 from mindone.trainers.ema import EMA

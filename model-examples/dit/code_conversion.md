@@ -410,8 +410,10 @@ dit/
 │   └── labels.csv
 ├── ...
 ├── DiT/  # torch参考实现
+├── mindone/  # MindONE主仓
 ├── tools/
-└── tests/
+├── tests/
+└── train_dit.py
 ```
 
 ### 模型前向精度验证
@@ -469,7 +471,7 @@ if __name__ == "__main__":
     np.save("pt_output.npy", output.cpu().detach().numpy())
 ```
 
-上述命令会初始化一个PyTorch的DiT模型，并载入`models/DiT-XL-2-256x256.pt`权重文件。随机初始化`x`,`y`和`t`并且将这些输入保存到`pt_inputs.npz`文件中。随后执行模型前向，将PyTorch模型的前向输出保存到`pt_output.npy`文件中。
+`python tests/run_torch_dit.py`会初始化一个PyTorch的DiT模型，并载入`models/DiT-XL-2-256x256.pt`权重文件。随机初始化`x`,`y`和`t`并且将这些输入保存到`pt_inputs.npz`文件中。随后执行模型前向，将PyTorch模型的前向输出保存到`pt_output.npy`文件中。
 
 随后，我们在MindSpore环境运行以下前向计算脚本获得MindSpore的前向结果：
 
@@ -479,7 +481,13 @@ import sys
 import numpy as np
 import mindspore as ms
 from mindspore import mint
-from utils.model_utils import load_dit_ckpt_params
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+example_path = os.path.abspath(os.path.join(__dir__, "../mindone/examples/"))
+if not os.path.exists(example_path):
+    raise ValueError(f"Expect to find the mindone examples directory: {example_path}")
+sys.path.insert(0, example_path)
+
+from dit.utils.model_utils import load_dit_ckpt_params
 
 from mindone.models.dit import DiT_models
 from mindone.utils.amp import auto_mixed_precision
@@ -543,28 +551,30 @@ if __name__ == "__main__":
     np.save("ms_output.npy", output.asnumpy())
 ```
 
-上述命令会初始化一个MindSpore的DiT模型，并载入`models/DiT-XL-2-256x256.ckpt`权重文件。通过载入`pt_inputs.npz`文件来保证两个模型的输入完全相同。随后执行模型前向，将MindSpore模型的前向输出保存到`ms_output.npy`文件中。
+`python tests/run_ms_dit.py`会初始化一个MindSpore的DiT模型，并载入`models/DiT-XL-2-256x256.ckpt`权重文件。通过载入`pt_inputs.npz`文件来保证两个模型的输入完全相同。随后执行模型前向，将MindSpore模型的前向输出保存到`ms_output.npy`文件中。
 
-最后对比两个输出，运行以下脚本：
+最后对比两个输出，运行以下脚本`python tests/compare_output.py`：
 ```bash
 import numpy as np
 
 def load_npy_file(file_path):
     return np.load(file_path)
 
-def calculate_mse(output1, output2):
-    return np.mean((output1 - output2) ** 2)
+def calculate_mae(output1, output2):
+    return np.mean(np.abs(output1 - output2))
 
 def main():
     ms_output = load_npy_file("ms_output.npy")
     pt_output = load_npy_file("pt_output.npy")
 
-    mse = calculate_mse(ms_output, pt_output)
+    mae = calculate_mae(ms_output, pt_output)
+    relative_mae = np.mean(np.abs(ms_output - pt_output) / (np.abs(pt_output) + 1e-8))
 
-    print(f"Mean Squared Error (MSE): {mse}")
+    print(f"Mean Absolute Error (MAE): {mae}")
+    print(f"Relative MAE (ms relative to pt): {relative_mae}")
 
-    if mse < 0.001:
-        print("The mse is less than 0.001, the model is correct.")
+    if mae < 0.001 and relative_mae < 0.01:
+        print("The mae is less than 0.001 and the relative mae is less than 1%, the model is correct.")
 
 if __name__ == "__main__":
     main()

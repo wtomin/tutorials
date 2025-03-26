@@ -3,7 +3,13 @@ import sys
 import numpy as np
 import mindspore as ms
 from mindspore import mint
-from mindone.examples.dit.utils.model_utils import load_dit_ckpt_params
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+example_path = os.path.abspath(os.path.join(__dir__, "../mindone/examples/"))
+if not os.path.exists(example_path):
+    raise ValueError(f"Expect to find the mindone examples directory: {example_path}")
+sys.path.insert(0, example_path)
+
+from dit.utils.model_utils import load_dit_ckpt_params
 
 from mindone.models.dit import DiT_models
 from mindone.utils.amp import auto_mixed_precision
