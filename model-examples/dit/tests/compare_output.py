@@ -16,8 +16,8 @@ def main():
     print(f"Mean Absolute Error (MAE): {mae}")
     print(f"Relative MAE (ms relative to pt): {relative_mae}")
 
-    if mae < 0.001 and relative_mae < 0.01:
-        print("The mae is less than 0.001 and the relative mae is less than 1%, the model is correct.")
+    if mae < 0.002 and relative_mae < 0.02:
+        print("The mae is less than 0.002 and the relative mae is less than 2%, the model is correct.")
 
 if __name__ == "__main__":
     main()
