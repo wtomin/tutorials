@@ -838,7 +838,7 @@ python tools/plot.py --input Dit/results/000-DiT-XL-2/log.txt outputs/class_cond
 ```
 得到的图片如下所示：
 
-![compare_loss.png](compare_loss.png)
+![compare_loss.png](./assets/compare_loss.png)
 
 可以看到，在相同的训练超参和相同的初始权重下，MindSpore和PyTorch的训练精度基本一致。
 
