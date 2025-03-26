@@ -187,7 +187,7 @@ DiT/
 DiT是基于Transformer架构的扩散生成模型，相比Stable Diffusion这类使用U-Net骨干网络的生成模型，DiT的可扩展性更好，是当前图像视频生成式SoTA的主流架构。其网络结构如下：
 
 <p align="center">
-  <img src="./assets/DiT_structure.PNG" width=550 />
+  <img src="./assets/DiT_structure.png" width=550 />
 </p>
 <p align="center">
   <em> DiT网络结构及DiT block </em>
