@@ -1,17 +1,9 @@
 import os
 import sys
-
 import numpy as np
-
 import mindspore as ms
 from mindspore import mint
-
-sys.path.insert(0, ".")
-__dir__ = os.path.dirname(os.path.abspath(__file__))
-mindone_lib_path = os.path.abspath(os.path.join(__dir__, "../../../"))
-sys.path.insert(0, mindone_lib_path)
-
-from utils.model_utils import load_dit_ckpt_params
+from mindone.examples.dit.utils.model_utils import load_dit_ckpt_params
 
 from mindone.models.dit import DiT_models
 from mindone.utils.amp import auto_mixed_precision
