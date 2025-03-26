@@ -582,8 +582,9 @@ if __name__ == "__main__":
 
 得到的输出为：
 ```bash
-Mean Squared Error (MSE): 1.9583489120222977e-05
-The mse is less than 0.001, the model is correct.
+Mean Absolute Error (MAE): 0.000282237131614238
+Relative MAE (ms relative to pt): 0.007836157456040382
+The mae is less than 0.001 and the relative mae is less than 1%, the model is correct.
 ```
 
 通过以上结果, 可判断网络前向已对齐，网络结构迁移结果正确。
