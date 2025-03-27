@@ -9,7 +9,7 @@ import os
 from typing import Optional
 import yaml
 import sys
-from mindcv.optim.adamw import AdamW
+from mindspore.nn.optim import AdamWeightDecay
 
 import mindspore as ms
 from mindspore import Model, nn
@@ -182,9 +182,13 @@ def main(args):
 
     # 4. build training utils: lr, optim, callbacks, trainer
     # build optimizer
-    optimizer = AdamW(
-        latent_diffusion_with_loss.trainable_params(), learning_rate=1e-4, beta1=0.9, beta2=0.999, weight_decay=0.0
-    )
+    optimizer = AdamWeightDecay(
+        latent_diffusion_with_loss.trainable_params(),
+        learning_rate=1e-4,
+        beta1=0.9,
+        beta2=0.999,
+        weight_decay=0.0
+        )
     if args.loss_scaler_type == "dynamic":
         loss_scaler = DynamicLossScaleUpdateCell(
             loss_scale_value=args.init_loss_scale, scale_factor=args.loss_scale_factor, scale_window=args.scale_window

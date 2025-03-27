@@ -60,7 +60,7 @@ python -c "import mindone; print(mindone.__version__)"
 
 请继续安装如下的依赖：
 ```bash
-pip install imageio==2.31.2 gdown einops omegaconf safetensors albumentations mindcv
+pip install imageio==2.31.2 gdown einops omegaconf safetensors albumentations
 ```
 或者参考[requirements.txt](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/requirements.txt) 并使用`pip install -r requirements.txt` 安装依赖。
 
@@ -663,10 +663,10 @@ EMA：ON
 为保证Loss收敛一致，我们应采用相同的训练超参，完整的MindSpore训练流程实现详见[train_dit.py](./train_dit.py)，其中涉及训练超参的关键代码如下：
 
 ```python
-    from mindcv.optim.adamw import AdamW 
+    from mindspore.nn.optim import AdamWeightDecay
     from mindone.trainers.ema import EMA
 
-    optimizer = AdamW(
+    optimizer = AdamWeightDecay(
         latent_diffusion_with_loss.trainable_params(),
         learning_rate=1e-4,
         beta1=0.9,
@@ -678,8 +678,6 @@ EMA：ON
             ema_decay=0.9999,
         )
 ```
-
-注意，我们采用mindcv套件中的AdamW优化器，因其算法实现与`torch.optim.AdamW`完全等价，而`mindspore.nn.AdamWeightDecay`则与torch有算法实现上的差异（详见[此处](https://www.mindspore.cn/docs/zh-CN/r2.4.10/note/api_mapping/pytorch_diff/AdamWeightDecay.html)）。
 
 ### 训练精度验证
 
