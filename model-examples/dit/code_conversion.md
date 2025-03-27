@@ -369,13 +369,13 @@ class DiTBlock(nn.Cell):
 
 由于预训练模型权重格式为`.pt`，我们需要先将PyTorch权重转换成MindSpore权重，主要逻辑是读取PyTorch权重的各个参数，转换成MindSpore的参数(`Parmeter`)，并且保存为`.ckpt`文件。
 
-我们使用[dit/tools/dit_converter.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/tools/dit_converter.py)脚本对DiT权重进行转换：
+我们使用[dit_converter.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/tools/dit_converter.py)脚本对DiT权重进行转换：
 
 ```bash
 python dit_converter.py --source models/DiT-XL-2-256x256.pt --target models/DiT-XL-2-256x256.ckpt
 ```
 
-类似地，我们使用[dit/tools/vae_converter.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/tools/vae_converter.py)对VAE权重进行转换：
+类似地，我们使用[vae_converter.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/tools/vae_converter.py)对VAE权重进行转换：
 ```bash
 python vae_converter.py --source models/diffusion_pytorch_model.bin --target models/sd-vae-ft-mse.ckpt
 ```
@@ -391,7 +391,7 @@ models/
 
 经过数据集准备和权重转换后，文件夹的结构应该如下所示：
 ```bash
-dit/
+./
 ├── models/
 │   ├── DiT-XL-2-256x256.ckpt
 │   ├── DiT-XL-2-256x256.pt
@@ -402,9 +402,7 @@ dit/
 │   └── labels.csv
 ├── ...
 ├── DiT/  # torch参考实现
-├── mindone/  # MindONE主仓
-├── tools/
-└── train_dit.py
+└── mindone/  # MindONE主仓
 ```
 
 
@@ -660,7 +658,7 @@ weight decay: 0
 EMA：ON
 ```
 
-为保证Loss收敛一致，我们应采用相同的训练超参，完整的MindSpore训练流程实现详见[train_dit.py](./train_dit.py)，其中涉及训练超参的关键代码如下：
+为保证Loss收敛一致，我们应采用相同的训练超参，完整的MindSpore训练流程实现详见[train_dit.py](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/train_dit.py)，其中涉及训练超参的关键代码如下：
 
 ```python
     from mindspore.nn.optim import AdamWeightDecay
@@ -696,6 +694,7 @@ EMA：ON
 
 在PyTorch环境执行如下的训练脚本：
 ```bash
+cd DiT/
 torchrun --nnodes=1 --nproc_per_node=2 \
   train.py \
   --model DiT-XL/2 \
@@ -711,18 +710,19 @@ torchrun --nnodes=1 --nproc_per_node=2 \
 
 接下来，我们需要将保存下来的初始权值`init_checkpoint.pt`转换成MindSpore的权重格式，可以使用如下的命令：
 ```bash
-python tools/dit_converter.py --source DiT/init_checkpoint.pt --target models/init_checkpoint.ckpt
+python dit_converter.py --source DiT/init_checkpoint.pt --target models/init_checkpoint.ckpt
 ```
 
 启动MindSpore训练脚本，详细超参参考[configs/training/class_cond_train.yaml](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/configs/training/class_cond_train.yaml), 
 
 ```bash
+cd mindone/examples/dit/
 msrun --bind_core=True --worker_num=2 --local_worker_num=2 --master_port=9000 --log_dir=outputs/class_cond_train/parallel_logs \
   train_dit.py \
-  --data_path datasets/ \
+  --data_path ../../../datasets/ \
   --train_batch_size 64 \
   --epochs 500 \
-  --dit_checkpoint models/init_checkpoint.ckpt \
+  --dit_checkpoint ../../../init_checkpoint.ckpt \
   --num_classes 2 \
   --enable_flash_attention True \
   --dataset_sink_mode True \
