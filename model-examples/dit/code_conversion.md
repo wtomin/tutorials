@@ -722,7 +722,8 @@ msrun --bind_core=True --worker_num=2 --local_worker_num=2 --master_port=9000 --
   --data_path ../../../datasets/ \
   --train_batch_size 64 \
   --epochs 500 \
-  --dit_checkpoint ../../../init_checkpoint.ckpt \
+  --dit_checkpoint ../../../models/init_checkpoint.ckpt \
+  --vae_checkpoint ../../../models/sd-vae-ft-mse.ckpt \
   --num_classes 2 \
   --enable_flash_attention True \
   --dataset_sink_mode True \
