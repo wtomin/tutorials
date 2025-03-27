@@ -498,9 +498,16 @@ def create_dataloader_imagenet(
 
 PyTorch的训练损失函数： [GaussianDiffusion.training_losses](https://github.com/facebookresearch/DiT/blob/main/diffusion/gaussian_diffusion.py#L715)
 
-MindSpore的训练损失函数： [DiTWithLoss.compute_loss](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/pipelines/train_pipeline.py#L133)
+MindSpore的训练损失函数： [DiTWithLoss.training_losses](https://github.com/mindspore-lab/mindone/blob/master/examples/dit/pipelines/train_pipeline.py#L133)
 
-PyTorch 损失函数的关键代码如下所示：
+<table>
+<tr>
+<th> Torch </th>
+<th> MindSpore </th>
+</tr>
+<tr>
+<td>
+
 ```python
     def training_losses(self, model, x_start, t, model_kwargs=None, noise=None):
         x_t = self.q_sample(x_start, t, noise=noise)
@@ -544,14 +551,11 @@ PyTorch 损失函数的关键代码如下所示：
             else:
                 terms["loss"] = terms["mse"]
 ```
-可以看出， PyTorch的损失函数由两部分组成，第一部分是模型的输出和当前的`target`之间的均方误差，第二部分是`vb`（Variational Bound）损失。
-
-为了转换成MindSpore实现，我们主要参考[PyTorch与MindSpore API映射表](https://www.mindspore.cn/docs/zh-CN/master/note/api_mapping/pytorch_api_mapping.html)将损失函数涉及的算子替换成MIndSpore对应的API，如`split`, `concat`等。
-
-转换后的代码如下：
+</td>
+<td>
 
 ```python
-    def compute_loss(self, x, y, text_embed):
+    def training_losses(self, x, y, text_embed):
         ...
         x_t = self.diffusion.q_sample(x, t, noise=noise)  # 对应torch 代码中的self.q_sample
         model_output = self.apply_model(x_t, t, y=y, text_embed=text_embed)  # 得到DiT模型的输出
@@ -561,14 +565,90 @@ PyTorch 损失函数的关键代码如下所示：
         model_output, model_var_values = mint.split(model_output, C, dim=1)
 
         # Learn the variance using the variational bound, but don't let it affect our mean prediction.
-        vb = self._cal_vb(ops.stop_gradient(model_output), model_var_values, x, x_t, t)  # _cal_vb 对应torch代码中的 self._vb_terms_bpd
+        vb = self._vb_terms_bpd(ops.stop_gradient(model_output), model_var_values, x, x_t, t)  # _cal_vb 对应torch代码中的 self._vb_terms_bpd
 
         loss = mean_flat((noise - model_output) ** 2) + vb
         loss = loss.mean()
         return loss
 ```
+</td>
+</tr>
+</table>
 
-MindSpore 的损失函数同样由均方误差和Variational Bound组成，只是去除了一些冗余的判定条件，`_cal_vb`函数对应于PyTorch代码中的`_vb_terms_bpd`函数，即计算Variational Bound 的函数。
+可以看出， PyTorch的损失函数由两部分组成，第一部分是模型的输出和当前的`target`之间的均方误差，第二部分是`vb`（Variational Bound）损失。
+
+为了转换成MindSpore实现，我们主要参考[PyTorch与MindSpore API映射表](https://www.mindspore.cn/docs/zh-CN/master/note/api_mapping/pytorch_api_mapping.html)将损失函数涉及的算子替换成MIndSpore对应的API，如`split`, `concat`等。经过转换，MindSpore 的损失函数同样由均方误差和Variational Bound组成，只是去除了一些冗余的判定条件。
+
+`_vb_terms_bpd`函数的代码对比如下：
+<table>
+<tr>
+<th> Torch </th>
+<th> MindSpore </th>
+</tr>
+<tr>
+<td>
+
+```python
+    def _vb_terms_bpd(
+            self, model, x_start, x_t, t, clip_denoised=True, model_kwargs=None
+    ):
+        """
+        Get a term for the variational lower-bound.
+        The resulting units are bits (rather than nats, as one might expect).
+        This allows for comparison to other papers.
+        :return: a dict with the following keys:
+                 - 'output': a shape [N] tensor of NLLs or KLs.
+                 - 'pred_xstart': the x_0 predictions.
+        """
+        true_mean, _, true_log_variance_clipped = self.q_posterior_mean_variance(
+            x_start=x_start, x_t=x_t, t=t
+        )
+        out = self.p_mean_variance(
+            model, x_t, t, clip_denoised=clip_denoised, model_kwargs=model_kwargs
+        )
+        kl = normal_kl(
+            true_mean, true_log_variance_clipped, out["mean"], out["log_variance"]
+        )
+        kl = mean_flat(kl) / np.log(2.0)
+
+        decoder_nll = -discretized_gaussian_log_likelihood(
+            x_start, means=out["mean"], log_scales=0.5 * out["log_variance"]
+        )
+        assert decoder_nll.shape == x_start.shape
+        decoder_nll = mean_flat(decoder_nll) / np.log(2.0)
+
+        # At the first timestep return the decoder NLL,
+        # otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
+        output = th.where((t == 0), decoder_nll, kl)
+        return {"output": output, "pred_xstart": out["pred_xstart"]}
+```
+
+</td>
+<td>
+
+```python
+    def _vb_terms_bpd(self, model_output, model_var_values, x, x_t, t):
+        true_mean, _, true_log_variance_clipped = self.diffusion.q_posterior_mean_variance(x_start=x, x_t=x_t, t=t)
+        min_log = _extract_into_tensor(self.diffusion.posterior_log_variance_clipped, t, x_t.shape)
+        max_log = _extract_into_tensor(mint.log(self.diffusion.betas), t, x_t.shape)
+        # The model_var_values is [-1, 1] for [min_var, max_var].
+        frac = (model_var_values + 1) / 2
+        model_log_variance = frac * max_log + (1 - frac) * min_log
+        pred_xstart = self.diffusion.predict_xstart_from_eps(x_t=x_t, t=t, eps=model_output)
+        model_mean, _, _ = self.diffusion.q_posterior_mean_variance(x_start=pred_xstart, x_t=x_t, t=t)
+        kl = normal_kl(true_mean, true_log_variance_clipped, model_mean, model_log_variance)
+        kl = mean_flat(kl) / ms.numpy.log(2.0)
+        decoder_nll = -discretized_gaussian_log_likelihood(x, means=model_mean, log_scales=0.5 * model_log_variance)
+        decoder_nll = mean_flat(decoder_nll) / ms.numpy.log(2.0)
+        # At the first timestep return the decoder NLL, otherwise return KL(q(x_{t-1}|x_t,x_0) || p(x_{t-1}|x_t))
+        vb = mint.where((t == 0), decoder_nll, kl)
+        return vb
+```
+
+</td>
+</tr>
+</table>
+
 
 ### 训练超参对齐
 
